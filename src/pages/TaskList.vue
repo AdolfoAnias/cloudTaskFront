@@ -194,6 +194,8 @@ const editTask = reactive({ id: null, title: '', is_done: false, keywords: [] })
 const showConfirmEstado = ref(false)
 const tareaCambioEstado = ref(null)
 
+const token = localStorage.getItem('token')
+
 const taskColumns = [
   { name: 'id', label: 'ID', field: 'id', align: 'left', sortable: true },
   { name: 'title', label: 'Título', field: 'title', align: 'left', sortable: true },
@@ -203,55 +205,74 @@ const taskColumns = [
 ]
 
 async function cargarTareas() {
-  try {
-    const response = await axios.get('http://localhost/cloudback/public/api/task')
-    console.log(response)
-    tasks.value = response.data.respuesta.data
-  } catch (error) {
-    console.error('Error cargando tareas:', error)
-  }
+  axios
+    .get('http://localhost/cloudback/public/api/task', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
+    })
+    .then((response) => {
+      tasks.value = response.data.respuesta.data
+    })
+    .catch((error) => {
+      console.error('Error cargando tareas:', error)
+    })
 }
 
 async function cargarKeywords() {
-  try {
-    const response = await axios.get('http://localhost/cloudback/public/api/keyword')
-    keywords.value = response.data.respuesta.data
-    console.log(keywords.value)
-  } catch (error) {
-    console.error('Error cargando keywords:', error)
-  }
+  axios
+    .get('http://localhost/cloudback/public/api/keyword', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
+    })
+    .then((response) => {
+      keywords.value = response.data.respuesta.data
+    })
+    .catch((error) => {
+      console.error('Error cargando palabras claves:', error)
+    })
 }
 
 async function crearTareaApi() {
   if (!newTaskTitle.value.trim()) return
-  try {
-    const response = await axios.post('http://localhost/cloudback/public/api/task', {
-      title: newTaskTitle.value.trim(),
-      keywords: newTaskKeywords.value,
+
+  axios
+    .post(
+      'http://localhost/cloudback/public/api/task',
+      {
+        title: newTaskTitle.value.trim(),
+        keywords: newTaskKeywords.value,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    )
+    .then((response) => {
+      const data = response.data
+      if (data.codigoRetorno === 200) {
+        Notify.create({
+          type: 'positive',
+          message: `Tarea creada correctamente: ${data.respuesta.title}`,
+        })
+        showCreateDialog.value = false
+        newTaskTitle.value = ''
+        newTaskKeywords.value = []
+        cargarTareas()
+      } else {
+        Notify.create({
+          type: 'negative',
+          message: `Error al crear tarea: ${data.glosaRetorno || 'Error desconocido'}`,
+        })
+      }
     })
-    const data = response.data
-    if (data.codigoRetorno === 200) {
-      Notify.create({
-        type: 'positive',
-        message: `Tarea creada correctamente: ${data.respuesta.title}`,
-      })
-      showCreateDialog.value = false
-      newTaskTitle.value = ''
-      newTaskKeywords.value = []
-      cargarTareas()
-    } else {
-      Notify.create({
-        type: 'negative',
-        message: `Error al crear tarea: ${data.glosaRetorno || 'Error desconocido'}`,
-      })
-    }
-  } catch (error) {
-    console.error('Error creando tarea:', error)
-    Notify.create({
-      type: 'negative',
-      message: 'Error de conexión o servidor al crear tarea',
+    .catch((error) => {
+      console.error('Error creando tarea:', error)
     })
-  }
 }
 
 function abrirConfirmarEliminar(task) {
@@ -266,32 +287,32 @@ function cancelarEliminar() {
 
 async function confirmarEliminar() {
   if (!tareaAEliminar.value) return
-  try {
-    const response = await axios.delete(
-      `http://localhost/cloudback/public/api/task/${tareaAEliminar.value.id}`,
-    )
-    const data = response.data
-    if (data.codigoRetorno === 200) {
-      Notify.create({
-        type: 'positive',
-        message: `Tarea eliminada correctamente`,
-      })
-      showConfirmDelete.value = false
-      tareaAEliminar.value = null
-      cargarTareas()
-    } else {
-      Notify.create({
-        type: 'negative',
-        message: `Error al eliminar tarea: ${data.glosaRetorno || 'Error desconocido'}`,
-      })
-    }
-  } catch (error) {
-    console.error('Error eliminando tarea:', error)
-    Notify.create({
-      type: 'negative',
-      message: 'Error de conexión o servidor al eliminar tarea',
+  axios
+    .delete(`http://localhost/cloudback/public/api/task/${tareaAEliminar.value.id}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     })
-  }
+    .then((response) => {
+      const data = response.data
+      if (data.codigoRetorno === 200) {
+        Notify.create({
+          type: 'positive',
+          message: `Tarea eliminada correctamente`,
+        })
+        showConfirmDelete.value = false
+        tareaAEliminar.value = null
+        cargarTareas()
+      } else {
+        Notify.create({
+          type: 'negative',
+          message: `Error al eliminar tarea: ${data.glosaRetorno || 'Error desconocido'}`,
+        })
+      }
+    })
+    .catch((error) => {
+      console.error('Error eliminando tarea:', error)
+    })
 }
 
 function abrirEditarTarea(task) {
@@ -312,34 +333,40 @@ function cancelarEditar() {
 
 async function guardarEdicion() {
   if (!editTask.title.trim()) return
-  try {
-    const response = await axios.put(`http://localhost/cloudback/public/api/task`, {
-      id: editTask.id,
-      title: editTask.title,
-      is_done: editTask.is_done,
-      keywords: editTask.keywords,
+  axios
+    .put(
+      'http://localhost/cloudback/public/api/task',
+      {
+        id: editTask.id,
+        title: editTask.title,
+        is_done: editTask.is_done,
+        keywords: editTask.keywords,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    )
+    .then((response) => {
+      const data = response.data
+      if (data.codigoRetorno === 200) {
+        Notify.create({
+          type: 'positive',
+          message: `Tarea actualizada correctamente: ${data.respuesta.title}`,
+        })
+        showEditDialog.value = false
+        cargarTareas()
+      } else {
+        Notify.create({
+          type: 'negative',
+          message: `Error al actualizar tarea: ${data.glosaRetorno || 'Error desconocido'}`,
+        })
+      }
     })
-    const data = response.data
-    if (data.codigoRetorno === 200) {
-      Notify.create({
-        type: 'positive',
-        message: `Tarea actualizada correctamente: ${data.respuesta.title}`,
-      })
-      showEditDialog.value = false
-      cargarTareas()
-    } else {
-      Notify.create({
-        type: 'negative',
-        message: `Error al actualizar tarea: ${data.glosaRetorno || 'Error desconocido'}`,
-      })
-    }
-  } catch (error) {
-    console.error('Error actualizando tarea:', error)
-    Notify.create({
-      type: 'negative',
-      message: 'Error de conexión o servidor al actualizar tarea',
+    .catch((error) => {
+      console.error('Error actualizando tarea:', error)
     })
-  }
 }
 
 function abrirConfirmarCambioEstado(task) {
@@ -354,34 +381,37 @@ function cancelarCambioEstado() {
 
 async function confirmarCambioEstado() {
   if (!tareaCambioEstado.value) return
-  try {
-    const response = await axios.patch(
+  axios
+    .patch(
       `http://localhost/cloudback/public/api/task/${tareaCambioEstado.value.id}/toggle`,
       {
         is_done: !tareaCambioEstado.value.is_done,
       },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
     )
-    const data = response.data
-    if (data.codigoRetorno === 200) {
-      Notify.create({
-        type: 'positive',
-        message: 'El estado de la tarea se cambió correctamente',
-      })
-      showConfirmEstado.value = false
-      cargarTareas()
-    } else {
-      Notify.create({
-        type: 'negative',
-        message: `Error al cambiar el estado de la tarea: ${data.glosaRetorno || 'Error desconocido'}`,
-      })
-    }
-  } catch (error) {
-    console.error('Error cambiando estado de tarea:', error)
-    Notify.create({
-      type: 'negative',
-      message: 'Error de conexión o servidor al cambiar estado',
+    .then((response) => {
+      const data = response.data
+      if (data.codigoRetorno === 200) {
+        Notify.create({
+          type: 'positive',
+          message: 'El estado de la tarea se cambió correctamente',
+        })
+        showConfirmEstado.value = false
+        cargarTareas()
+      } else {
+        Notify.create({
+          type: 'negative',
+          message: `Error al cambiar el estado de la tarea: ${data.glosaRetorno || 'Error desconocido'}`,
+        })
+      }
     })
-  }
+    .catch((error) => {
+      console.error('Error cambiando estado de tarea:', error)
+    })
 }
 
 onMounted(() => {

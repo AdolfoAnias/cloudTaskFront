@@ -134,6 +134,8 @@ const editKeyword = reactive({ id: null, name: '' })
 const showConfirmDelete = ref(false)
 const keywordAEliminar = ref(null)
 
+const token = localStorage.getItem('token')
+
 const columns = [
   { name: 'id', label: 'ID', field: 'id', align: 'left', sortable: true },
   { name: 'name', label: 'Nombre', field: 'name', align: 'left', sortable: true },
@@ -141,33 +143,48 @@ const columns = [
 ]
 
 async function cargarKeywords() {
-  try {
-    const response = await axios.get('http://localhost/cloudback/public/api/keyword')
-    keywords.value = response.data.respuesta.data
-  } catch (error) {
-    console.error('Error cargando keywords:', error)
-  }
+  axios
+    .get('http://localhost/cloudback/public/api/keyword', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    .then((response) => {
+      keywords.value = response.data.respuesta.data
+    })
+    .catch((error) => {
+      console.error('Error cargando keywords:', error)
+    })
 }
 
 async function crearKeywordApi() {
   if (!newKeywordName.value.trim()) return
-  try {
-    const response = await axios.post('http://localhost/cloudback/public/api/keyword', {
-      name: newKeywordName.value.trim(),
+  axios
+    .post(
+      'http://localhost/cloudback/public/api/keyword',
+      {
+        name: newKeywordName.value.trim(),
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    )
+    .then((response) => {
+      const data = response.data
+      if (data.codigoRetorno === 200) {
+        Notify.create({ type: 'positive', message: `Keyword creada: ${data.respuesta.name}` })
+        showCreateDialog.value = false
+        newKeywordName.value = ''
+        cargarKeywords()
+      } else {
+        Notify.create({ type: 'negative', message: data.glosaRetorno || 'Error desconocido' })
+      }
     })
-    const data = response.data
-    if (data.codigoRetorno === 200) {
-      Notify.create({ type: 'positive', message: `Keyword creada: ${data.respuesta.name}` })
-      showCreateDialog.value = false
-      newKeywordName.value = ''
-      cargarKeywords()
-    } else {
-      Notify.create({ type: 'negative', message: data.glosaRetorno || 'Error desconocido' })
-    }
-  } catch (error) {
-    console.error('Error creando keyword:', error)
-    Notify.create({ type: 'negative', message: 'Error de conexión o servidor al crear keyword' })
-  }
+    .catch((error) => {
+      console.error('Error creando keyword:', error)
+    })
 }
 
 function abrirEditarKeyword(keyword) {
@@ -184,26 +201,38 @@ function cancelarEditar() {
 
 async function guardarEdicion() {
   if (!editKeyword.name.trim()) return
-  try {
-    const response = await axios.put(`http://localhost/cloudback/public/api/keyword`, {
-      id: editKeyword.id,
-      name: editKeyword.name,
+  axios
+    .put(
+      'http://localhost/cloudback/public/api/keyword',
+      {
+        id: editKeyword.id,
+        name: editKeyword.name,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    )
+    .then((response) => {
+      const data = response.data
+      if (data.codigoRetorno === 200) {
+        Notify.create({
+          type: 'positive',
+          message: `Keyword actualizada: ${data.respuesta.name}`,
+        })
+        showEditDialog.value = false
+        cargarKeywords()
+      } else {
+        Notify.create({
+          type: 'negative',
+          message: data.glosaRetorno || 'Error desconocido',
+        })
+      }
     })
-    const data = response.data
-    if (data.codigoRetorno === 200) {
-      Notify.create({ type: 'positive', message: `Keyword actualizada: ${data.respuesta.name}` })
-      showEditDialog.value = false
-      cargarKeywords()
-    } else {
-      Notify.create({ type: 'negative', message: data.glosaRetorno || 'Error desconocido' })
-    }
-  } catch (error) {
-    console.error('Error actualizando keyword:', error)
-    Notify.create({
-      type: 'negative',
-      message: 'Error de conexión o servidor al actualizar keyword',
+    .catch((error) => {
+      console.error('Error actualizando keyword:', error)
     })
-  }
 }
 
 function abrirConfirmarEliminar(keyword) {
@@ -218,23 +247,26 @@ function cancelarEliminar() {
 
 async function confirmarEliminar() {
   if (!keywordAEliminar.value) return
-  try {
-    const response = await axios.delete(
-      `http://localhost/cloudback/public/api/keyword/${keywordAEliminar.value.id}`,
-    )
-    const data = response.data
-    if (data.codigoRetorno === 200) {
-      Notify.create({ type: 'positive', message: 'Keyword eliminada correctamente' })
-      showConfirmDelete.value = false
-      keywordAEliminar.value = null
-      cargarKeywords()
-    } else {
-      Notify.create({ type: 'negative', message: data.glosaRetorno || 'Error desconocido' })
-    }
-  } catch (error) {
-    console.error('Error eliminando keyword:', error)
-    Notify.create({ type: 'negative', message: 'Error de conexión o servidor al eliminar keyword' })
-  }
+  axios
+    .delete(`http://localhost/cloudback/public/api/keyword/${keywordAEliminar.value.id}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    .then((response) => {
+      const data = response.data
+      if (data.codigoRetorno === 200) {
+        Notify.create({ type: 'positive', message: 'Keyword eliminada correctamente' })
+        showConfirmDelete.value = false
+        keywordAEliminar.value = null
+        cargarKeywords()
+      } else {
+        Notify.create({ type: 'negative', message: data.glosaRetorno || 'Error desconocido' })
+      }
+    })
+    .catch((error) => {
+      console.error('Error eliminando keyword:', error)
+    })
 }
 
 onMounted(() => {
