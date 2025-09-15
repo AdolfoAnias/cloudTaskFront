@@ -216,7 +216,11 @@ async function cargarTareas() {
       tasks.value = response.data.respuesta.data
     })
     .catch((error) => {
-      console.error('Error cargando tareas:', error)
+      if (error.response && error.response.status === 401) {
+        window.location.href = '/login'
+      } else {
+        console.error('Error cargando tareas:', error)
+      }
     })
 }
 
